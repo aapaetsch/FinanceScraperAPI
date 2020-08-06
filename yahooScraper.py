@@ -144,6 +144,7 @@ class yahooScraper:
     def __init__(self):
         self.__currentValueData = []
         self.__indiciesData = []
+        self.__currencies = []
         self.header = {
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1",
@@ -267,8 +268,11 @@ class yahooScraper:
 
     def runTableScraper(self, page):
         #This method can be used to scrape currencies or indicies
-        if page != 'currencies' or page != 'indicies':
+        print(page)
+        if page != 'currencies' and page != 'world-indices':
+            print(page, 'world-indices', page == 'world-indices')
             return False
+
         print('\n\n\n\n\nscraper running\n\n\n\n\n\n\n')
         time.sleep(random.uniform(0,6))
         url = 'https://ca.finance.yahoo.com/'+ page
@@ -277,15 +281,13 @@ class yahooScraper:
         content = bs(r.content, 'lxml')
         
         try:
-            print(content)
             data = content.find_all('tr')
-            print(data)
         except:
             return False
 
 
         for d in data:
-            content = bs(d, 'lxml')
+            content = bs(str(d), 'lxml')
             items = content.find_all('td')
             ind = {}
             colNames = ['ticker', 'name', 'value', 'change', 'changePercent', 'volume']
@@ -299,7 +301,7 @@ class yahooScraper:
             
             if ind.get('ticker') != None:
                 ind['lastUpdate'] = time.time()
-                if page == 'indicies':
+                if page == 'world-indices':
                     self.__indiciesData.append(ind)
                 elif page == 'currencies':
                     self.__currencies.append(ind)
