@@ -33,7 +33,7 @@ def home():
 	'''
 
 #This method checks the database and updates values as necessary 
-@app.route('/stonksAPI/v1/update', methods=['PUT'])
+@app.route('/stonksAPI/v1/update', methods=['GET'])
 def updateValues():
 	#First we update the ticker values
 	cursor = mongo.db.currentTickerValues
@@ -90,12 +90,10 @@ def updateValues():
 				if newData != []:
 					for d in newData:
 						cursor3.update_one({'ticker': d['ticker']}, {'$set':d})	
+	response = jsonify({'updated': True})
+	response.headers.add('Access-Control-Allow-Origin', siteURL)
+	return response
 
-	return '''
-	<h1>Stonks API</h1>
-	<p>The API just updated<p> 
-	'''
-	
 #This function checks if a stock has a valid ticker (if it does and it is new, add it top the database)
 @app.route('/stonksAPI/v1/single/exists', methods=['GET', 'POST'])
 def checkTickerExists():
@@ -161,7 +159,7 @@ def multipleLookup():
 	else:
 		return 'Error: No tickers provided'
 	print(tickers)
-	t = tickers.split(',')
+	t = tickers.replace('_','.').split(',')
 	print(t)
 	cursor = mongo.db.currentTickerValues
 	query = {'ticker': {"$in":t}}
