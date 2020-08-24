@@ -46,14 +46,14 @@ def updateMyTickers():
     tickersList = tickers.replace('_','.').split(',')
     for ticker in tickersList:
         stock = updateTickerValues(ticker, False)
-        updateHistoricalData(ticker)
+        updateHistoricalData(ticker, False)
 
 
     return sendResponse({'updated': True}, origin)
 
 
 #This function updates a ticker's historical data in the db and returns True if it does so successfully
-def updateHistoricalData(ticker):
+def updateHistoricalData(ticker, rush):
 
     cursor = mongo.db.historical
     scraper = yfs()
@@ -77,7 +77,7 @@ def updateHistoricalData(ticker):
     elif (time.time() - data['lastUpdate']) > 28800:
 
         try:
-            scraper.scrapeHistoricalData(ticker)
+            scraper.scrapeHistoricalData(ticker, rush)
             data = scraper.getHistoricalData()
             historicalEntry = {'ticker': ticker, 'lastUpdate': time.time(), 'data': data}
             cursor.update_one({'ticker': ticker}, {'$set':newData})
@@ -157,7 +157,7 @@ def updateValues():
     return sendResponse({'updated': True}, request.headers['origin'])
 
 #This function checks if a stock has a valid ticker (if it does and it is new, add it top the database)
-@app.route('/stonksAPI/v1/single/exists', methods=['GET', 'POST'])
+@app.route('/stonksAPI/v1/single/exists', methods=['GET'])
 def checkTickerExists():
 
     if 'ticker' in request.args:
@@ -168,8 +168,12 @@ def checkTickerExists():
             return 'Error: Origin not allowed'
     else:
         return "Error: No ticker provided. Please specify a ticker."
-
-    stock = updateTickerValues(ticker, True)
+    
+    stock = lookupSingle(ticker , mongo.db.currentTickerValues)
+    if len(stock) == 0:
+        stock = updateTickerValues(ticker, True)
+        if stock == False:
+            sendResponse(None,origin)
     #need better solution for updating historical data, this will cause lag when a user adds a new stock
     updateHistoricalData(ticker, True)
 
@@ -190,13 +194,13 @@ def updateTickerValues(ticker, rush):
         try:
             scraper.runValueScraper(ticker, rush)
             newData = scraper.getCurrentValueData()[0]
-       
-            if newDat['price'] != 0.00:
+            if newData['price'] != 0.00:
                 cursor.insert_one(newData)
                 stock = cursor.find_one(query, {"_id": 0})
+        except: 
+            return False
 
-        except:
-            return stock
+        
     
     elif (time.time() - stock['lastUpdate']) > 36000:
         scraper.runValueScraper(ticker, rush)
@@ -221,7 +225,7 @@ def singleLookup():
     else:
         return "Error: No ticker provided. Please specify a ticker."
 
-    stock = singleLookup(ticker , mongo.db.currentTickerValues)
+    stock = lookupSingle(ticker , mongo.db.currentTickerValues)
     return sendResponse(stock, origin)
 
 #Checks for a list of stocks 
